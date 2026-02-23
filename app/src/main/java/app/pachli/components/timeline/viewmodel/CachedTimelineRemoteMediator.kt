@@ -42,6 +42,7 @@ import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOrElse
+import com.github.michaelbull.result.map
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import okhttp3.Headers
@@ -75,7 +76,9 @@ class CachedTimelineRemoteMediator(
                         RemoteKeyKind.REFRESH,
                     )?.key
                     Timber.d("Refresh from item: %s", statusId)
-                    getInitialPage(statusId, state.config.initialLoadSize)
+                    getInitialPage(statusId, state.config.initialLoadSize).map {
+                        mastodonApi.resolveShallowQuotes(it)
+                    }
                 }
 
                 LoadType.PREPEND -> {
@@ -85,7 +88,9 @@ class CachedTimelineRemoteMediator(
                         RemoteKeyKind.PREV,
                     ) ?: return@transactionProvider MediatorResult.Success(endOfPaginationReached = true)
                     Timber.d("Prepend from remoteKey: %s", rke)
-                    mastodonApi.homeTimeline(minId = rke.key, limit = state.config.pageSize)
+                    mastodonApi.homeTimeline(minId = rke.key, limit = state.config.pageSize).map {
+                        mastodonApi.resolveShallowQuotes(it)
+                    }
                 }
 
                 LoadType.APPEND -> {
@@ -95,7 +100,9 @@ class CachedTimelineRemoteMediator(
                         RemoteKeyKind.NEXT,
                     ) ?: return@transactionProvider MediatorResult.Success(endOfPaginationReached = true)
                     Timber.d("Append from remoteKey: %s", rke)
-                    mastodonApi.homeTimeline(maxId = rke.key, limit = state.config.pageSize)
+                    mastodonApi.homeTimeline(maxId = rke.key, limit = state.config.pageSize).map {
+                        mastodonApi.resolveShallowQuotes(it)
+                    }
                 }
             }.getOrElse { return@transactionProvider MediatorResult.Error(it.asThrowable(context)) }
 
@@ -203,6 +210,9 @@ class CachedTimelineRemoteMediator(
      * then adds references to them in the Home timeline.
      *
      * Must be called inside an existing database transaction.
+     *
+     * @param pachliAccountId
+     * @param statuses The list of statuses to add to the timeline.
      */
     private suspend fun insertStatuses(pachliAccountId: Long, statuses: List<Status>) {
         check(transactionProvider.inTransaction())
