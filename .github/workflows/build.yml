@@ -1,4 +1,4 @@
-name: Build APK Manual
+name: Build Pachli Release APK
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Java 17
@@ -20,14 +20,18 @@ jobs:
       - name: Give permission to gradlew
         run: chmod +x gradlew
 
-      # Si el proyecto usa variantes como orangeGoogleRelease
-      # puedes cambiar a assembleDebug si falla
-      - name: Build APK
-        run: ./gradlew assembleDebug --stacktrace
+      - name: Clean project
+        run: ./gradlew clean
+
+      - name: Build Orange Google Release
+        run: ./gradlew assembleOrangeGoogleRelease --stacktrace
+
+      - name: Show generated APK files
+        run: find . -name "*.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug.apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: pachli-orange-release
+          path: app/build/outputs/apk/orangeGoogle/release/*.apk
           compression-level: 0
